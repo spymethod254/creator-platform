@@ -1,0 +1,125 @@
+import React, { useState } from 'react';
+import { Mail, Lock, User, Phone, Briefcase, Heart, Camera, ArrowRight } from 'lucide-react';
+
+export default function RegisterLogin() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    username: '', email: '', password: '', phone: '',
+    workStatus: 'Available', relationship: 'Private'
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleGoogleAuth = () => {
+    // Redirects to your backend OAuth endpoint
+    window.location.href = 'http://localhost:5000/auth/google';
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log(`Submitting ${isLogin ? 'Login' : 'Registration'}:`, formData);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-4 font-sans">
+      <div className="bg-slate-800 w-full max-w-md rounded-2xl border border-slate-700 shadow-xl overflow-hidden p-6 md:p-8">
+        
+        {/* Toggle Headings */}
+        <div className="flex border-b border-slate-700 mb-6">
+          <button onClick={() => setIsLogin(true)} className={`flex-1 pb-3 text-sm font-bold border-b-2 transition ${isLogin ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Sign In</button>
+          <button onClick={() => setIsLogin(false)} className={`flex-1 pb-3 text-sm font-bold border-b-2 transition ${!isLogin ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Create Account</button>
+        </div>
+
+        {/* Title */}
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-black text-indigo-400 tracking-wide">CREATOR.HUB</h2>
+          <p className="text-xs text-slate-400 mt-1">{isLogin ? 'Welcome back! Log in to check updates.' : 'Join the community to collaborate.'}</p>
+        </div>
+
+        {/* OAuth Google Button */}
+        <button onClick={handleGoogleAuth} className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-100 text-slate-900 font-semibold text-sm py-2.5 px-4 rounded-xl transition shadow-sm mb-4">
+          <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.42 1.69l3.3-3.3C17.74 1.58 15.06 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.8 2.95C6.23 7.02 8.89 5.04 12 5.04z"/>
+            <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.43h6.44c-.28 1.47-1.11 2.71-2.36 3.55l3.66 2.84c2.14-1.98 3.39-4.89 3.39-8.48z"/>
+            <path fill="#FBBC05" d="M5.3 14.55c-.24-.72-.38-1.49-.38-2.3s.14-1.58.38-2.3L1.5 7.01C.54 8.93 0 11.11 0 13.43s.54 4.5 1.5 6.42l3.8-2.95z"/>
+            <path fill="#34A853" d="M12 23c3.24 0 5.97-1.08 7.96-2.91l-3.66-2.84c-1.01.68-2.31 1.09-4.3 1.09-3.11 0-5.77-1.98-6.71-4.91L1.49 16.38C3.4 20.21 7.35 23 12 23z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <div className="flex items-center my-4 text-xs text-slate-500 font-medium">
+          <div className="flex-1 border-t border-slate-700/60"></div>
+          <span className="px-3">OR USE EMAIL</span>
+          <div className="flex-1 border-t border-slate-700/60"></div>
+        </div>
+
+        {/* Form Inputs Container */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {!isLogin && (
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Username</label>
+              <div className="relative"><span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><User size={16}/></span>
+                <input type="text" name="username" required onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-400 mb-1">Email Address</label>
+            <div className="relative"><span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><Mail size={16}/></span>
+              <input type="email" name="email" required onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+            </div>
+          </div>
+
+          {!isLogin && (
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Mobile Number</label>
+              <div className="relative"><span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><Phone size={16}/></span>
+                <input type="tel" name="phone" required onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <div className="flex justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-400">Password</label>
+              {isLogin && <button type="button" className="text-xs text-indigo-400 hover:underline">Forgot?</button>}
+            </div>
+            <div className="relative"><span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><Lock size={16}/></span>
+              <input type="password" name="password" required onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+            </div>
+          </div>
+
+          {!isLogin && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Work Status <span className="text-[10px] text-slate-500">(Opt)</span></label>
+                <select name="workStatus" onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="Available">Available</option>
+                  <option value="Busy">Busy</option>
+                  <option value="Freelance">Freelance</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Relationship <span className="text-[10px] text-slate-500">(Opt)</span></label>
+                <select name="relationship" onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="Private">Private</option>
+                  <option value="Single">Single</option>
+                  <option value="In a Relationship">In a Relationship</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          <button type="submit" className="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-sm py-2.5 px-4 rounded-xl transition shadow-md pt-3">
+            {isLogin ? 'Sign In' : 'Create Account'} <ArrowRight size={16}/>
+          </button>
+
+        </form>
+      </div>
+    </div>
+  );
+}
