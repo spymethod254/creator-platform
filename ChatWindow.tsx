@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Send, Image, Eye, EyeOff, Mic, Phone, Video, ArrowLeft } from 'lucide-react';
 
@@ -15,23 +15,26 @@ interface ChatMessage {
   dbId?: number;
 }
 
-let socketInstance: Socket | null = null;
-
 export default function ChatWindow() {
   const currentUserId = localStorage.getItem('userId') || '1';
   const targetUserId = '2'; // Simulated chat partner connection index
-  
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
   const [isViewOnceActive, setIsViewOnceActive] = useState(false);
+  
+  // ✅ FIX 1: Safely store the socket instance inside a React Ref so it survives re-renders
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    // Connect to live Socket.io backend channel
-    socketInstance = io('http://localhost:5000');
+    // ✅ FIX 2: Establish connection and store it inside the ref
+    const socket = io('http://localhost:5000');
+    socketRef.current = socket;
 
-    socketInstance.emit('user_online', currentUserId);
+    socket.emit('user_online', currentUserId);
 
-    socketInstance.on('receive_message', (data: any) => {
+    // ✅ FIX 3: Keep listener parameters dynamic
+    socket.on('receive_message', (data: any) => {
       if (data.senderId === targetUserId) {
         const incomingMsg: ChatMessage = {
           id: data.messageId,
@@ -46,30 +49,40 @@ export default function ChatWindow() {
           dbId: data.dbId
         };
         setMessages((prev) => [...prev, incomingMsg]);
-        // Immediately fire back read event signal to trigger Blue Ticks on sender device
-        socketInstance?.emit('message_read', { messageId: data.messageId, senderId: data.senderId, isViewOnce: data.isViewOnce, dbId: data.dbId });
+        
+        // Fire back read event signal using the local socket reference
+        socket.emit('message_read', { 
+          messageId: data.messageId, 
+          senderId: data.senderId, 
+          isViewOnce: data.isViewOnce, 
+          dbId: data.dbId 
+        });
       }
     });
 
-    socketInstance.on('message_status_update', (data: { messageId: string; status: 'sent' | 'delivered' | 'read' }) => {
+    socket.on('message_status_update', (data: { messageId: string; status: 'sent' | 'delivered' | 'read' }) => {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === data.messageId ? { ...msg, status: data.status } : msg))
       );
     });
 
-    socketInstance.on('destroy_view_once_media', (data: { messageId: string }) => {
+    socket.on('destroy_view_once_media', (data: { messageId: string }) => {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === data.messageId ? { ...msg, opened: true } : msg))
       );
     });
 
+    // ✅ FIX 4: Explicit clean up. When component unmounts, drop the socket connection immediately
     return () => {
-      socketInstance?.disconnect();
+      socket.disconnect();
+      socketRef.current = null;
     };
-  }, [currentUserId]);
+  }, [currentUserId, targetUserId]); // Dependencies updated to prevent stale scopes
 
   const handleSendMessage = () => {
-    if (!textInput.trim() || !socketInstance) return;
+    // Access current socket instance safely from the ref
+    const currentSocket = socketRef.current;
+    if (!textInput.trim() || !currentSocket) return;
 
     const uniqueMsgId = Date.now().toString();
     const payload = {
@@ -94,7 +107,7 @@ export default function ChatWindow() {
     };
 
     setMessages((prev) => [...prev, newLocalMsg]);
-    socketInstance.emit('send_message', payload);
+    currentSocket.emit('send_message', payload);
     setTextInput('');
     setIsViewOnceActive(false);
   };
