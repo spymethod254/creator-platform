@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ArrowLeft, ShieldCheck, Mail, Phone, 
-  Briefcase, Heart, ThumbsUp, MessageCircle, ExternalLink 
+  Briefcase, Heart, ThumbsUp, MessageCircle
 } from 'lucide-react';
 
 export default function UserProfile() {
@@ -12,33 +12,34 @@ export default function UserProfile() {
   const currentUserId = localStorage.getItem('userId') || '1';
   const targetProfileId = profileId || currentUserId;
 
-  const [creator, setCreator] = useState(null);
+  const [creator, setCreator] = useState<any>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
   const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        // 1. Fetch real user row details from the database
         const userRes = await fetch(`http://localhost:5000/api/users/${targetProfileId}`);
         const userData = await userRes.json();
 
-        if (!userRes.ok) throw new Error(userData.error);
+        if (!userRes.ok || !userData.profile) {
+          throw new Error(userData.error || "Profile object missing from server response.");
+        }
 
-        // 2. Fetch follow statistics metrics
+        const profile = userData.profile;
+
         const statsRes = await fetch(`http://localhost:5000/api/creators/${targetProfileId}/follow-stats`);
         const statsData = await statsRes.json();
 
-        // Combine database records seamlessly
         setCreator({
-          user_id: userData.user_id,
-          username: userData.username,
-          email: userData.email,
-          phone_number: userData.phone_number || 'No number linked',
-          profile_picture_url: 'https://unsplash.com',
-          work_status: userData.work_status || 'Available',
-          relationship_status: userData.relationship_status || 'Private',
+          user_id: profile.user_id,
+          username: profile.username,
+          email: profile.email,
+          phone_number: profile.phone_number || 'No number linked',
+          profile_picture_url: `https://dicebear.com${profile.username}`,
+          work_status: profile.work_status || 'Available',
+          relationship_status: profile.relationship_status || 'Private',
           totalFollowers: statsData.totalFollowers || 0,
           totalFollowing: statsData.totalFollowing || 0
         });
@@ -46,6 +47,7 @@ export default function UserProfile() {
         setLoading(false);
       } catch (err) {
         console.error('Error mounting profile details:', err);
+        setCreator(null);
         setLoading(false);
       }
     };
@@ -69,7 +71,7 @@ export default function UserProfile() {
         const data = await response.json();
         setIsFollowing(data.following);
         
-        setCreator(prev => {
+        setCreator((prev: any) => {
           if (!prev) return null;
           const currentCount = prev.totalFollowers || 0;
           const updatedCount = data.following ? currentCount + 1 : Math.max(0, currentCount - 1);
@@ -110,6 +112,7 @@ export default function UserProfile() {
   const aboutTabClass = activeTab === 'about'
     ? 'pb-3 px-4 border-b-2 transition border-indigo-500 text-indigo-400'
     : 'pb-3 px-4 border-b-2 transition border-transparent text-slate-400 hover:text-slate-200';
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans pb-12">
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 sticky top-0 z-50 flex items-center gap-3">
@@ -170,42 +173,20 @@ export default function UserProfile() {
 
           {activeTab === 'about' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-sm">
-                <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 tracking-wider">Social Channels</h3>
-                <div className="space-y-2">
-                  <a href="https://tiktok.com" target="_blank" rel="noreferrer" className="flex justify-between p-2.5 bg-slate-700/40 hover:bg-slate-700/70 rounded-xl text-xs transition">
-                    <span className="font-bold text-slate-200">TikTok</span>
-                    <span className="text-slate-400 flex items-center gap-1">@alex_tech <ExternalLink size={12}/></span>
-                  </a>
-                  <a href="https://instagram.com" target="_blank" rel="noreferrer" className="flex justify-between p-2.5 bg-slate-700/40 hover:bg-slate-700/70 rounded-xl text-xs transition">
-                    <span className="font-bold text-slate-200">Instagram</span>
-                    <span className="text-slate-400 flex items-center gap-1">@alex_tech_visuals <ExternalLink size={12}/></span>
-                  </a>
+              <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-sm space-y-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">User Details</h3>
+                <div className="space-y-2 text-sm text-slate-300">
+                  <div className="flex items-center gap-2"><Mail size={16} className="text-slate-400" /> {creator.email}</div>
+                  <div className="flex items-center gap-2"><Phone size={16} className="text-slate-400" /> {creator.phone_number}</div>
                 </div>
               </div>
 
-              <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 space-y-4 shadow-sm">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-wider">Status Metrics</h3>
-                  <div className="space-y-1.5 text-xs text-slate-300">
-                    <div className="flex items-center gap-2"><Briefcase size={14} className="text-slate-500"/> <span>Work: {creator.work_status}</span></div>
-                    <div className="flex items-center gap-2"><Heart size={14} className="text-slate-500"/> <span>Status: {creator.relationship_status}</span></div>
-                  </div>
+              <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-sm space-y-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status Information</h3>
+                <div className="space-y-2 text-sm text-slate-300">
+                  <div className="flex items-center gap-2"><Briefcase size={16} className="text-slate-400" /> Work: <span className="text-indigo-400 font-semibold">{creator.work_status}</span></div>
+                  <div className="flex items-center gap-2"><Heart size={16} className="text-slate-400" /> Matrix: <span className="text-indigo-400 font-semibold">{creator.relationship_status}</span></div>
                 </div>
-
-                {isProfileOwner ? (
-                  <div className="border-t border-slate-700 pt-3">
-                    <h3 className="text-xs font-bold text-amber-400 uppercase mb-2 tracking-wider">Private Details</h3>
-                    <div className="space-y-2 text-xs font-mono">
-                      <div className="flex items-center gap-2 p-2 bg-slate-900 rounded-xl border border-slate-800"><Mail size={14} className="text-slate-500"/> <span>{creator.email}</span></div>
-                      <div className="flex items-center gap-2 p-2 bg-slate-900 rounded-xl border border-slate-800"><Phone size={14} className="text-slate-500"/> <span>{creator.phone_number}</span></div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="border-t border-slate-700/60 pt-3 text-center text-xs text-slate-500 italic">
-                    🔒 Private details are locked.
-                  </div>
-                )}
               </div>
             </div>
           )}
