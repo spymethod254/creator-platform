@@ -29,6 +29,8 @@ export async function toggleLike(req: Request, res: Response) {
       return res.json({ success: true, liked: true, message: "Post liked successfully." });
     }
   } catch (error) {
+    // ✅ OPTIMIZATION: Always log the exact server error stack for structural debugging
+    console.error("🔴 Toggle Like Database Exception:", error);
     return res.status(500).json({ error: "Failed to update post reaction loop." });
   }
 }
@@ -53,6 +55,7 @@ export async function addComment(req: Request, res: Response) {
       commentId: result.lastID
     });
   } catch (error) {
+    console.error("🔴 Add Comment Database Exception:", error);
     return res.status(500).json({ error: "Failed to insert comment data." });
   }
 }
@@ -64,8 +67,18 @@ export async function getPostEngagement(req: Request, res: Response) {
     const db = await getDatabase();
 
     const likeCount = await db.get('SELECT COUNT(*) as count FROM post_reactions WHERE post_id = ?', [postId]);
+    
+    // ✅ FIX: Standardized mapped aliases (comment_id as commentId, created_at as createdAt) 
+    // to match standard React dynamic key expectations and prevent frontend runtime crashes.
     const comments = await db.all(`
-      SELECT c.*, u.username 
+      SELECT 
+        c.comment_id as commentId, 
+        c.post_id as postId, 
+        c.user_id as userId, 
+        c.comment_text as commentText, 
+        c.created_at as createdAt,
+        u.username,
+        u.profile_picture_url as profilePictureUrl
       FROM post_comments c 
       JOIN users u ON c.user_id = u.user_id 
       WHERE c.post_id = ? 
@@ -77,6 +90,7 @@ export async function getPostEngagement(req: Request, res: Response) {
       comments: comments
     });
   } catch (error) {
+    console.error("🔴 Get Engagement Database Exception:", error);
     return res.status(500).json({ error: "Failed to load post engagement tracking." });
   }
 }
@@ -107,6 +121,7 @@ export async function toggleFollow(req: Request, res: Response) {
       return res.json({ success: true, following: true, message: "Creator followed successfully." });
     }
   } catch (error) {
+    console.error("🔴 Toggle Follow Database Exception:", error);
     return res.status(500).json({ error: "Failed to process follow framework matrix query." });
   }
 }
@@ -125,6 +140,7 @@ export async function getFollowStats(req: Request, res: Response) {
       totalFollowing: following?.count || 0
     });
   } catch (error) {
+    console.error("🔴 Get Follow Stats Database Exception:", error);
     return res.status(500).json({ error: "Failed to load follower network stats." });
   }
 }
