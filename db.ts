@@ -120,5 +120,30 @@ async function createDatabaseTables(db: Database) {
     );
   `);
 
+  // 8. POST REACTIONS TABLE (LIKES)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS post_reactions (
+      reaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER,
+      user_id INTEGER,
+      FOREIGN KEY(post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+      UNIQUE (post_id, user_id)
+    );
+  `);
+
+  // 9. POST COMMENTS TABLE
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS post_comments (
+      comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER,
+      user_id INTEGER,
+      comment_text TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+  `);
+
   console.log("🚀 SQLite Database initialized successfully with all tables.");
 }
