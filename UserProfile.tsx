@@ -30,9 +30,8 @@ export default function UserProfile() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans pb-12">
-      {/* HEADER BAR */}
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 sticky top-0 z-50 flex items-center gap-3">
-        <button className="text-slate-400 hover:text-white"><ArrowLeft size={20} /></button>
+        <button type="button" className="text-slate-400 hover:text-white"><ArrowLeft size={20} /></button>
         <div className="flex items-center gap-1.5">
           <h2 className="font-bold text-sm">{creatorData.username}</h2>
           <ShieldCheck size={16} className="text-indigo-400" />
@@ -40,7 +39,6 @@ export default function UserProfile() {
       </header>
 
       <div className="max-w-3xl mx-auto px-4 pt-6">
-        {/* HERO CARD */}
         <div className="flex flex-col sm:flex-row items-center gap-5 bg-slate-800 p-6 rounded-2xl border border-slate-700/80 shadow-md">
           <div className="relative">
             <img src={creatorData.profilePicture} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-indigo-500"/>
@@ -53,21 +51,19 @@ export default function UserProfile() {
               <div><span className="font-bold text-indigo-400">{creatorData.totalFollowing}</span> Following</div>
             </div>
             <div className="mt-3 flex gap-2 justify-center sm:justify-start">
-              <button onClick={() => setIsFollowing(!isFollowing)} className={`text-xs font-bold px-4 py-2 rounded-xl transition ${isFollowing ? 'bg-slate-700 text-slate-300' : 'bg-indigo-500 text-white'}`}>
+              <button type="button" onClick={() => setIsFollowing(!isFollowing)} className={`text-xs font-bold px-4 py-2 rounded-xl transition ${isFollowing ? 'bg-slate-700 text-slate-300' : 'bg-indigo-500 text-white'}`}>
                 {isFollowing ? '✓ Following' : 'Follow'}
               </button>
-              <button className="bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl">Message</button>
+              <button type="button" className="bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl">Message</button>
             </div>
           </div>
         </div>
 
-        {/* TAB NAVIGATION */}
         <div className="flex border-b border-slate-800 mt-6 text-sm font-bold">
-          <button onClick={() => setActiveTab('posts')} className={`pb-3 px-4 border-b-2 ${activeTab === 'posts' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400'}`}>Feed</button>
-          <button onClick={() => setActiveTab('about')} className={`pb-3 px-4 border-b-2 ${activeTab === 'about' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400'}`}>About</button>
+          <button type="button" onClick={() => setActiveTab('posts')} className={`pb-3 px-4 border-b-2 ${activeTab === 'posts' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400'}`}>Feed</button>
+          <button type="button" onClick={() => setActiveTab('about')} className={`pb-3 px-4 border-b-2 ${activeTab === 'about' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400'}`}>About</button>
         </div>
 
-        {/* TABS CONTAINER */}
         <div className="mt-5">
           {activeTab === 'posts' && (
             <div className="space-y-4">
@@ -78,8 +74,8 @@ export default function UserProfile() {
                   </div>
                   <p className="text-sm text-slate-300 mb-3">{post.content}</p>
                   <div className="flex gap-4 text-xs text-slate-400 font-semibold">
-                    <button className="flex items-center gap-1 hover:text-indigo-400"><ThumbsUp size={14}/> {post.likes}</button>
-                    <button className="flex items-center gap-1 hover:text-indigo-400"><MessageCircle size={14}/> {post.comments}</button>
+                    <button type="button" className="flex items-center gap-1 hover:text-indigo-400"><ThumbsUp size={14}/> {post.likes}</button>
+                    <button type="button" className="flex items-center gap-1 hover:text-indigo-400"><MessageCircle size={14}/> {post.comments}</button>
                   </div>
                 </article>
               ))}
@@ -88,7 +84,6 @@ export default function UserProfile() {
 
           {activeTab === 'about' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Public Badge Links */}
               <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Profiles</h3>
                 <div className="space-y-2">
@@ -101,7 +96,6 @@ export default function UserProfile() {
                 </div>
               </div>
 
-              {/* Status and Secure Private Items */}
               <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 space-y-4">
                 <div>
                   <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">Status</h3>
@@ -120,8 +114,8 @@ export default function UserProfile() {
               </div>
             </div>
           )}
-        </div> {/* Tab closure */}
-      </div> {/* Width limit closure */}
-    </div> {/* Screen root closure */}
+        </div>
+      </div>
+    </div>
   );
 }
