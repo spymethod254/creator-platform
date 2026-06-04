@@ -23,17 +23,17 @@ export default function ChatWindow() {
   const [textInput, setTextInput] = useState('');
   const [isViewOnceActive, setIsViewOnceActive] = useState(false);
   
-  // ✅ FIX 1: Safely store the socket instance inside a React Ref so it survives re-renders
+  // Safely cache the socket client instance across full state render cycles
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    // ✅ FIX 2: Establish connection and store it inside the ref
+    // Establish fresh real-time web channel instance
     const socket = io('http://localhost:5000');
     socketRef.current = socket;
 
     socket.emit('user_online', currentUserId);
 
-    // ✅ FIX 3: Keep listener parameters dynamic
+    // Dynamic message interceptor loop mapping
     socket.on('receive_message', (data: any) => {
       if (data.senderId === targetUserId) {
         const incomingMsg: ChatMessage = {
@@ -43,44 +43,55 @@ export default function ChatWindow() {
           type: data.type,
           content: data.content,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'read',
+          status: data.status || 'read',
           isViewOnce: data.isViewOnce,
           opened: false,
           dbId: data.dbId
         };
         setMessages((prev) => [...prev, incomingMsg]);
         
-        // Fire back read event signal using the local socket reference
+        // Return verification status to update grey checkmarks to sky blue
         socket.emit('message_read', { 
           messageId: data.messageId, 
           senderId: data.senderId, 
+          recipientId: data.recipientId,
           isViewOnce: data.isViewOnce, 
           dbId: data.dbId 
         });
       }
     });
 
+    // Checkmark/Tick delivery updates handler
     socket.on('message_status_update', (data: { messageId: string; status: 'sent' | 'delivered' | 'read' }) => {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === data.messageId ? { ...msg, status: data.status } : msg))
       );
     });
 
+    // View-Once image/video instant client removal handler
     socket.on('destroy_view_once_media', (data: { messageId: string }) => {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === data.messageId ? { ...msg, opened: true } : msg))
       );
     });
 
-    // ✅ FIX 4: Explicit clean up. When component unmounts, drop the socket connection immediately
+    // Real-time administration safety kick handler
+    socket.on('force_disconnect_user', (data: { userId: string }) => {
+      if (data.userId === currentUserId) {
+        alert("Your account has been restricted by administration.");
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+    });
+
+    // Lifecycle cleanup to kill dual phantom connections in development mode
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [currentUserId, targetUserId]); // Dependencies updated to prevent stale scopes
+  }, [currentUserId, targetUserId]);
 
   const handleSendMessage = () => {
-    // Access current socket instance safely from the ref
     const currentSocket = socketRef.current;
     if (!textInput.trim() || !currentSocket) return;
 
@@ -121,6 +132,7 @@ export default function ChatWindow() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans max-w-4xl mx-auto border-x border-slate-800 shadow-2xl">
+      {/* HEADER SECTION */}
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-3">
           <button type="button" className="md:hidden text-slate-400 hover:text-white"><ArrowLeft size={20}/></button>
@@ -139,6 +151,7 @@ export default function ChatWindow() {
         </div>
       </header>
 
+      {/* CHAT MESSAGES CONTAINER */}
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}>
@@ -163,6 +176,7 @@ export default function ChatWindow() {
         ))}
       </main>
 
+      {/* CONTROL & INPUT FOOTER SECTION */}
       <footer className="bg-slate-800 border-t border-slate-700 p-3 sticky bottom-0">
         <div className="flex items-center gap-2">
           <button type="button" className="text-slate-400 hover:text-indigo-400 p-2 hover:bg-slate-700 rounded-xl"><Image size={20}/></button>
