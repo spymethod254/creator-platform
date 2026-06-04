@@ -17,31 +17,35 @@ export default function UserProfile() {
   const [activeTab, setActiveTab] = useState('posts');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+    useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const url = `http://localhost:5000/api/creators/${targetProfileId}/follow-stats`;
-        const profileRes = await fetch(url);
-        const statsData = await profileRes.json();
+        // 1. Fetch real user row details from the database
+        const userRes = await fetch(`http://localhost:5000/api/users/${targetProfileId}`);
+        const userData = await userRes.json();
 
-        const accountUsername = targetProfileId === currentUserId ? (localStorage.getItem('username') || 'My_Account') : 'Alex_TechCreator';
+        if (!userRes.ok) throw new Error(userData.error);
 
-        const userMockDetails = {
-          user_id: Number(targetProfileId),
-          username: accountUsername,
-          email: 'alex.rivera.creations@gmail.com',
-          phone_number: '+1 (555) 234-5678',
+        // 2. Fetch follow statistics metrics
+        const statsRes = await fetch(`http://localhost:5000/api/creators/${targetProfileId}/follow-stats`);
+        const statsData = await statsRes.json();
+
+        // Combine database records seamlessly
+        setCreator({
+          user_id: userData.user_id,
+          username: userData.username,
+          email: userData.email,
+          phone_number: userData.phone_number || 'No number linked',
           profile_picture_url: 'https://unsplash.com',
-          work_status: 'Freelance',
-          relationship_status: 'Single',
+          work_status: userData.work_status || 'Available',
+          relationship_status: userData.relationship_status || 'Private',
           totalFollowers: statsData.totalFollowers || 0,
           totalFollowing: statsData.totalFollowing || 0
-        };
+        });
 
-        setCreator(userMockDetails);
         setLoading(false);
       } catch (err) {
-        console.error('Error mounting profile framework details:', err);
+        console.error('Error mounting profile details:', err);
         setLoading(false);
       }
     };
