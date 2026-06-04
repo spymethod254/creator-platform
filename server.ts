@@ -1,3 +1,4 @@
+import { toggleLike, addComment, getPostEngagement, toggleFollow, getFollowStats } from './interactionsController';
 import express from 'express';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
