@@ -5,7 +5,6 @@ import { getDatabase } from './db';
 // 1. REGISTER NEW ACCOUNT CONTROLLER
 export async function registerUser(req: Request, res: Response) {
   try {
-    // ✅ FIX 1: Destructure keys using the standardized snake_case properties sent by the frontend form
     const { username, email, password, phone_number, work_status, relationship_status } = req.body;
 
     // Fast validation check for required fields
@@ -38,22 +37,22 @@ export async function registerUser(req: Request, res: Response) {
       [username, email, passwordHash, phone_number, work_status || 'Available', relationship_status || 'Private']
     );
 
+    // ✅ FIXED BLOCKS: Properly structured object matching frontend session formats
     return res.status(201).json({ 
       success: true, 
       message: "Creator account successfully registered!",
-      user: { userId: result.lastID, username } // Matches the payload expectation inside RegisterLogin.tsx
+      user: { user_id: result.lastID, username: username }
     });
 
   } catch (error: any) {
     console.error("🔴 Registration Error:", error);
     return res.status(500).json({ error: "Internal server registry loop crash." });
   }
-}
+} // <-- This explicit bracket guarantees registerUser closes cleanly!
 
 // 2. LOGIN USER CONTROLLER
 export async function loginUser(req: Request, res: Response) {
   try {
-    // ✅ FIX 2: Accept either email or username to align cleanly with your frontend authentication form inputs
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -62,7 +61,7 @@ export async function loginUser(req: Request, res: Response) {
 
     const db = await getDatabase();
 
-    // ✅ FIX 3: Flexible lookups that handle input credentials seamlessly across both parameters
+    // Flexible lookups that handle input credentials seamlessly across both parameters
     const user = await db.get(
       'SELECT user_id, username, password_hash, restriction_status FROM users WHERE username = ? OR email = ?', 
       [email, email]
@@ -72,7 +71,7 @@ export async function loginUser(req: Request, res: Response) {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
-    // Specification Safeguard Check: Block banned or restricted profiles
+    // Specification Safeguard Check: Block banned profiles
     if (user.restriction_status === 'Banned') {
       return res.status(403).json({ error: "This account has been permanently banned from the network." });
     }
