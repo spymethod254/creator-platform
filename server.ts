@@ -24,6 +24,16 @@ app.post('/api/admin/restrict', updateUserRestriction);
 app.get('/api/admin/flagged', getFlaggedAccounts);
 
 // -------------------------------------------------------------
+// 💬 INTERACTION & FOLLOWER MATRIX API ROUTE MAPPINGS
+// -------------------------------------------------------------
+app.post('/api/posts/like', toggleLike);
+app.post('/api/posts/comment', addComment);
+app.get('/api/posts/:postId/engagement', getPostEngagement);
+
+app.post('/api/creators/follow', toggleFollow);
+app.get('/api/creators/:userId/follow-stats', getFollowStats);
+
+// -------------------------------------------------------------
 // 📝 HOMEPAGE SCROLL FEED ENDPOINTS (For Homepage.tsx Feed)
 // -------------------------------------------------------------
 
