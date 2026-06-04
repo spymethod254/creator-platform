@@ -12,13 +12,53 @@ interface Post {
 
 export default function Homepage() {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
+  // Retrieve who is currently logged in (fallback to userId 1 for testing)
+  const currentUserId = localStorage.getItem('userId') || '1';
+
+  // Function to pull latest posts from the SQLite backend engine
+  const fetchFeedPosts = () => {
     fetch('http://localhost:5000/api/posts')
       .then((res) => res.json())
       .then((data) => setPosts(data))
       .catch((err) => console.error("Error loading network feed:", err));
+  };
+
+  useEffect(() => {
+    fetchFeedPosts();
   }, []);
+
+  // Submit the textbox entries straight to our backend database endpoint
+  const handlePublishPost = async () => {
+    if (!newPostContent.trim()) return;
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          content: newPostContent
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to publish post content.');
+      }
+
+      setNewPostContent(''); // Clear text box on success
+      fetchFeedPosts();      // Refresh feed layout to display the new post instantly
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
@@ -42,16 +82,31 @@ export default function Homepage() {
 
         <main className="flex-1 p-4 overflow-y-auto max-w-2xl mx-auto w-full pb-24 md:pb-4">
           
+          {/* QUICK POST CREATOR BOX */}
           <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 mb-5 shadow-sm">
             <div className="flex gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">YOU</div>
-              <input type="text" placeholder="Share a post, job update or cross-promotion link..." className="bg-slate-700 w-full rounded-xl px-4 py-2 text-sm text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"/>
+              <input 
+                type="text" 
+                value={newPostContent}
+                onChange={(e) => setNewPostContent(e.target.value)}
+                placeholder="Share a post, job update or cross-promotion link..." 
+                className="bg-slate-700 w-full rounded-xl px-4 py-2 text-sm text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              />
             </div>
             <div className="border-t border-slate-700/60 pt-2 flex justify-end">
-              <button type="button" className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm">Post Update</button>
+              <button 
+                type="button" 
+                onClick={handlePublishPost}
+                disabled={isSubmitting || !newPostContent.trim()}
+                className="bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm"
+              >
+                {isSubmitting ? 'Publishing...' : 'Post Update'}
+              </button>
             </div>
           </div>
 
+          {/* STREAM VIEW BLOCK CONTAINER */}
           <div className="flex flex-col gap-4">
             {posts.length === 0 ? (
               <div className="text-center text-slate-500 text-sm py-10">No live updates posted on the feed yet.</div>
@@ -61,10 +116,10 @@ export default function Homepage() {
                   <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold border border-slate-600">
-                        {post.username.substring(0, 2).toUpperCase()}
+                        {post.username ? post.username.substring(0, 2).toUpperCase() : 'CC'}
                       </div>
                       <div>
-                        <h4 className="font-bold text-sm text-slate-100 hover:underline cursor-pointer">{post.username}</h4>
+                        <h4 className="font-bold text-sm text-slate-100 hover:underline cursor-pointer">{post.username || 'Anonymous'}</h4>
                         <p className="text-xs text-slate-400">Creator Hub Member</p>
                       </div>
                     </div>
