@@ -93,6 +93,8 @@ const io = new Server(httpServer, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
+app.set('io', io); // Makes socket server accessible to your controller files
+
 const onlineUsers = new Map<string, string>(); // Map<userId, socketId>
 
 io.on('connection', (socket: Socket) => {
