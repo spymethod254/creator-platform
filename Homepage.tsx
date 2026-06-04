@@ -196,11 +196,22 @@ export default function Homepage() {
 
       </div>
 
+            {/* MOBILE FOOTER NAVBAR */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur-md border-t border-slate-700 px-4 py-2 flex justify-around items-center text-slate-400 z-50 shadow-lg">
-        <button type="button" onClick={() => navigate('/')} className="flex flex-col items-center gap-0.5 text-indigo-400">
-          <Home size={20}/><span className="text-[10px] font-medium">Home</span>
+        <button type="button" onClick={() => navigate('/')} className="flex flex-col items-center gap-1 text-indigo-400">
+          <Home size={20} />
+          <span className="text-[10px] font-medium">Home</span>
         </button>
-        <button type="button" onClick={() => navigate('/profile')} className="flex flex-col items-center gap-0.5 hover:text-slate-200">
-          <Compass size={20}/><span className="text-[10px] font-medium">Profile</span>
+        <button type="button" onClick={() => navigate('/profile')} className="flex flex-col items-center gap-1 hover:text-slate-200">
+          <Compass size={20} />
+          <span className="text-[10px] font-medium">Profile</span>
         </button>
-        <button type="button" onClick={() => navigate('/chat')} className="flex flex-col items-center gap-0.5 hover:text-slate-200">
+        <button type="button" onClick={() => navigate('/chat')} className="flex flex-col items-center gap-1 hover:text-slate-200">
+          <MessageSquare size={20} />
+          <span className="text-[10px] font-medium">Chat</span>
+        </button>
+      </nav>
+
+    </div>
+  );
+}
