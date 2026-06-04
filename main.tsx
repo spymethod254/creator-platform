@@ -1,10 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import Homepage from './Homepage'; // This loads your responsive homepage layout first
-import './index.css'; // Connects your global Tailwind background styling sheets
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Homepage from './Homepage';
+import RegisterLogin from './RegisterLogin';
+import ChatWindow from './ChatWindow';
+import UserProfile from './UserProfile';
+import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <Homepage />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Homepage />} />
+        <Route path="/login" element={<RegisterLogin />} />
+        <Route path="/chat" element={<ChatWindow />} />
+        <Route path="/profile" element={<UserProfile />} />
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>
 );
