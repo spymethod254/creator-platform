@@ -5,8 +5,7 @@ import { Mail, Lock, User, Phone, ArrowRight } from 'lucide-react';
 export default function RegisterLogin() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
-  
-  // ✅ FIX 1: Variables synced directly with SQLite snake_case schema naming criteria
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -24,11 +23,11 @@ export default function RegisterLogin() {
     window.location.href = 'http://localhost:5000/auth/google';
   };
 
+  // ✅ REPLACED: Your new handleSubmit with dynamic user_id/userId check + full refresh
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     
-    // ✅ FIX 2: Dynamic payload construction. Keeps hidden values away from login queries
     const submissionPayload = isLogin 
       ? { email: formData.email, password: formData.password }
       : formData;
@@ -49,12 +48,18 @@ export default function RegisterLogin() {
       alert(data.message);
       
       if (data.success && data.user) {
-        // Safe tracking string persistence alignment
-        localStorage.setItem('userId', data.user.userId || data.user.user_id);
-        localStorage.setItem('username', data.user.username);
-        navigate('/'); // Clean programmatic client redirection
+        // ✅ FIX: This look-up captures both user_id and userId dynamically
+        const trueId = data.user_id || data.userId;
+        
+        if (trueId) {
+          localStorage.setItem('userId', trueId.toString());
+          localStorage.setItem('username', data.user.username || '');
+          window.location.href = '/'; // Forces a full refresh to re-load profile state
+        } else {
+          alert("Authentication error: User ID token missing.");
+        }
       } else if (data.success && !isLogin) {
-        setIsLogin(true); 
+        setIsLogin(true); // Switch to login screen after successful signup
       }
     } catch (err: any) {
       alert(err.message);
@@ -63,8 +68,8 @@ export default function RegisterLogin() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-4 font-sans">
-      <div className="bg-slate-800 w-full max-w-md rounded-2xl border border-slate-700 shadow-xl p-6 md:p-8">
-        
+      <div className="bg-slate-800 w-full max-w-md rounded-2xl border-slate-700 shadow-xl p-6 md:p-8">
+
         <div className="flex border-b border-slate-700 mb-6">
           <button type="button" onClick={() => setIsLogin(true)} className={`flex-1 pb-3 text-sm font-bold border-b-2 transition ${isLogin ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Sign In</button>
           <button type="button" onClick={() => setIsLogin(false)} className={`flex-1 pb-3 text-sm font-bold border-b-2 transition ${!isLogin ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Create Account</button>
@@ -140,7 +145,7 @@ export default function RegisterLogin() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Relationship</label>
-                <select name="relationship_status" value={formData.relationship_status} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <select name="relationship_status" value={formData.relationship_status} value={formData.relationship_status} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <option value="Private">Private</option>
                   <option value="Single">Single</option>
                   <option value="In a relationship">In a relationship</option>
