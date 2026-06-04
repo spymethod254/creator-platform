@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Phone, ArrowRight } from 'lucide-react';
 
 export default function RegisterLogin() {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
+  
+  // ✅ FIX 1: Variables synced directly with SQLite snake_case schema naming criteria
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    phone: '',
-    workStatus: 'Available',
-    relationship: 'Private'
+    phone_number: '',
+    work_status: 'Available',
+    relationship_status: 'Private'
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -24,11 +28,16 @@ export default function RegisterLogin() {
     e.preventDefault();
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     
+    // ✅ FIX 2: Dynamic payload construction. Keeps hidden values away from login queries
+    const submissionPayload = isLogin 
+      ? { email: formData.email, password: formData.password }
+      : formData;
+
     try {
       const response = await fetch(`http://localhost:5000${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submissionPayload)
       });
       
       const data = await response.json();
@@ -40,11 +49,12 @@ export default function RegisterLogin() {
       alert(data.message);
       
       if (data.success && data.user) {
-        localStorage.setItem('userId', data.user.userId.toString());
+        // Safe tracking string persistence alignment
+        localStorage.setItem('userId', data.user.userId || data.user.user_id);
         localStorage.setItem('username', data.user.username);
-        window.location.href = '/'; // Redirect to Homepage feed
+        navigate('/'); // Clean programmatic client redirection
       } else if (data.success && !isLogin) {
-        setIsLogin(true); // Switch to login screen after successful signup
+        setIsLogin(true); 
       }
     } catch (err: any) {
       alert(err.message);
@@ -105,15 +115,13 @@ export default function RegisterLogin() {
               <label className="block text-xs font-bold text-slate-400 mb-1">Mobile Number</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><Phone size={16}/></span>
-                <input type="tel" name="phone" required value={formData.phone} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+                <input type="tel" name="phone_number" required value={formData.phone_number} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
               </div>
             </div>
           )}
 
           <div>
-            <div className="flex justify-between mb-1">
-              <label className="block text-xs font-bold text-slate-400">Password</label>
-            </div>
+            <label className="block text-xs font-bold text-slate-400 mb-1">Password</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><Lock size={16}/></span>
               <input type="password" name="password" required value={formData.password} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
@@ -124,7 +132,7 @@ export default function RegisterLogin() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Work Status</label>
-                <select name="workStatus" value={formData.workStatus} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <select name="work_status" value={formData.work_status} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <option value="Available">Available</option>
                   <option value="Busy">Busy</option>
                   <option value="Freelance">Freelance</option>
@@ -132,7 +140,7 @@ export default function RegisterLogin() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Relationship</label>
-                <select name="relationship" value={formData.relationship} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <select name="relationship_status" value={formData.relationship_status} onChange={handleInputChange} className="w-full bg-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <option value="Private">Private</option>
                   <option value="Single">Single</option>
                   <option value="In a relationship">In a relationship</option>
