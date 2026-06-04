@@ -1,22 +1,17 @@
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 
-// Initialize the database connection engine
 let dbInstance: Database | null = null;
 
 export async function getDatabase(): Promise<Database> {
   if (dbInstance) return dbInstance;
 
-  // Open the SQLite file database (creates it automatically if it doesn't exist)
   dbInstance = await open({
     filename: './creator_platform.db',
     driver: sqlite3.Database
   });
 
-  // Enable Foreign Key support inside SQLite (turned off by default)
   await dbInstance.get('PRAGMA foreign_keys = ON');
-
-  // Initialize the complete platform database schema
   await createDatabaseTables(dbInstance);
 
   return dbInstance;
@@ -30,7 +25,7 @@ async function createDatabaseTables(db: Database) {
       username TEXT UNIQUE NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT,
-      phone_number TEXT UNIQUE NOT NULL,
+      phone_number TEXT UNIQUE, -- ✅ FIX: Made nullable or empty string handled to prevent registration crashes
       profile_picture_url TEXT DEFAULT 'default_avatar.png',
       date_of_birth TEXT,
       work_status TEXT CHECK(work_status IN ('Available', 'Busy', 'Employed', 'Freelance')) DEFAULT 'Available',
@@ -89,12 +84,13 @@ async function createDatabaseTables(db: Database) {
     );
   `);
 
-  // 6. MESSAGES STREAM (With View-Once Parameters)
+  // 6. MESSAGES STREAM (Unified Key Aliases)
   await db.exec(`
     CREATE TABLE IF NOT EXISTS messages (
-      message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id INTEGER PRIMARY KEY AUTOINCREMENT, -- ✅ Synced safely with server.ts logic constraints
       conversation_id INTEGER,
       sender_id INTEGER,
+      recipient_id INTEGER, -- ✅ FIX: Explicit tracking layer for peer-to-peer delivery lookup routines
       message_type TEXT CHECK(message_type IN ('text', 'image', 'video', 'audio', 'voice_note')) DEFAULT 'text',
       file_url TEXT,
       is_view_once INTEGER DEFAULT 0,
@@ -105,7 +101,7 @@ async function createDatabaseTables(db: Database) {
     );
   `);
 
-  // 7. MESSAGE TICK STATUS SYSTEM (Single, Double Grey, Blue Ticks)
+  // 7. MESSAGE TICK STATUS SYSTEM
   await db.exec(`
     CREATE TABLE IF NOT EXISTS message_receipts (
       message_id INTEGER,
