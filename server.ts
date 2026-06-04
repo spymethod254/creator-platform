@@ -13,6 +13,9 @@ app.use(express.json()); // Allows parsing JSON data out of incoming requests
 // -------------------------------------------------------------
 // 🔑 CORE AUTHENTICATION ENDPOINTS (For RegisterLogin.tsx)
 // -------------------------------------------------------------
+app.post('/api/admin/restrict', updateUserRestriction);
+app.get('/api/admin/flagged', getFlaggedAccounts);
+
 app.post('/api/auth/register', registerUser);
 app.post('/api/auth/login', loginUser);
 
