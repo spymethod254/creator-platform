@@ -1,3 +1,4 @@
+import { updateUserRestriction, getFlaggedAccounts } from './moderationController';
 import express from 'express';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
