@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Compass, Video, MessageSquare, Menu, ThumbsUp, MessageCircle, Share2, Award } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Home, Compass, Video, MessageSquare, ThumbsUp, MessageCircle, Share2, Award } from 'lucide-react';
 
 interface Post {
   post_id: number;
@@ -8,29 +9,50 @@ interface Post {
   content: string;
   media_url?: string;
   is_admin_featured: number;
+  likes_count?: number;      
+  comments_count?: number;   
+  user_has_liked?: boolean;  
 }
 
 export default function Homepage() {
+  const navigate = useNavigate(); 
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPostContent, setNewPostContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Retrieve who is currently logged in (fallback to userId 1 for testing)
   const currentUserId = localStorage.getItem('userId') || '1';
 
-  // Function to pull latest posts from the SQLite backend engine
-  const fetchFeedPosts = () => {
-    fetch('http://localhost:5000/api/posts')
-      .then((res) => res.json())
-      .then((data) => setPosts(data))
-      .catch((err) => console.error("Error loading network feed:", err));
+  const fetchFeedPosts = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/posts');
+      const postsData = await res.json();
+      
+      const enrichedPosts = await Promise.all(
+        postsData.map(async (post: Post) => {
+          try {
+            const engageRes = await fetch(`http://localhost:5000/api/posts/${post.post_id}/engagement`);
+            const engageData = await engageRes.json();
+            return {
+              ...post,
+              likes_count: engageData.likes || 0,
+              comments_count: engageData.comments?.length || 0
+            };
+          } catch {
+            return { ...post, likes_count: 0, comments_count: 0 };
+          }
+        })
+      );
+      
+      setPosts(enrichedPosts);
+    } catch (err) {
+      console.error("Error loading network feed:", err);
+    }
   };
 
   useEffect(() => {
     fetchFeedPosts();
   }, []);
 
-  // Submit the textbox entries straight to our backend database endpoint
   const handlePublishPost = async () => {
     if (!newPostContent.trim()) return;
     setIsSubmitting(true);
@@ -51,8 +73,8 @@ export default function Homepage() {
         throw new Error(data.error || 'Failed to publish post content.');
       }
 
-      setNewPostContent(''); // Clear text box on success
-      fetchFeedPosts();      // Refresh feed layout to display the new post instantly
+      setNewPostContent(''); 
+      fetchFeedPosts();      
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -60,11 +82,26 @@ export default function Homepage() {
     }
   };
 
+  const handleToggleLike = async (postId: number) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/posts/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, userId: currentUserId })
+      });
+      if (response.ok) {
+        fetchFeedPosts(); 
+      }
+    } catch (err) {
+      console.error("Failed to execute like interaction toggle:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
       
       <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 px-4 py-2 flex justify-between items-center shadow-md">
-        <h1 className="text-xl font-black tracking-wider text-indigo-400">CREATOR.HUB</h1>
+        <h1 className="text-xl font-black tracking-wider text-indigo-400 cursor-pointer" onClick={() => navigate('/')}>CREATOR.HUB</h1>
         <div className="flex bg-slate-700 rounded-full px-3 py-1 text-sm border border-slate-600">
           <span className="text-green-400 mr-1.5">●</span> Community Active
         </div>
@@ -74,18 +111,17 @@ export default function Homepage() {
         
         <aside className="w-64 p-4 hidden md:flex flex-col gap-2 border-r border-slate-800">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Navigation</p>
-          <button type="button" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium transition"><Home size={18}/> Feed Home</button>
-          <button type="button" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 text-sm font-medium transition"><Compass size={18}/> Suggestions</button>
-          <button type="button" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 text-sm font-medium transition"><Video size={18}/> Videos</button>
-          <button type="button" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 text-sm font-medium transition"><MessageSquare size={18}/> Chat</button>
+          <button type="button" onClick={() => navigate('/')} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium transition w-full text-left"><Home size={18}/> Feed Home</button>
+          <button type="button" onClick={() => navigate('/profile')} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 text-sm font-medium transition w-full text-left"><Compass size={18}/> My Profile</button>
+          <button type="button" onClick={() => navigate('/chat')} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 text-sm font-medium transition w-full text-left"><MessageSquare size={18}/> Chat Rooms</button>
+          <button type="button" onClick={() => { localStorage.clear(); navigate('/login'); }} className="mt-auto flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-400 hover:bg-rose-950/20 text-sm font-medium transition w-full text-left">Sign Out Account</button>
         </aside>
 
         <main className="flex-1 p-4 overflow-y-auto max-w-2xl mx-auto w-full pb-24 md:pb-4">
           
-          {/* QUICK POST CREATOR BOX */}
           <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 mb-5 shadow-sm">
             <div className="flex gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">YOU</div>
+              <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm shrink-0">YOU</div>
               <input 
                 type="text" 
                 value={newPostContent}
@@ -106,7 +142,6 @@ export default function Homepage() {
             </div>
           </div>
 
-          {/* STREAM VIEW BLOCK CONTAINER */}
           <div className="flex flex-col gap-4">
             {posts.length === 0 ? (
               <div className="text-center text-slate-500 text-sm py-10">No live updates posted on the feed yet.</div>
@@ -115,7 +150,7 @@ export default function Homepage() {
                 <article key={post.post_id} className="bg-slate-800 rounded-2xl border border-slate-700 shadow-sm overflow-hidden">
                   <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold border border-slate-600">
+                      <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold border border-slate-600 shrink-0">
                         {post.username ? post.username.substring(0, 2).toUpperCase() : 'CC'}
                       </div>
                       <div>
@@ -135,11 +170,19 @@ export default function Homepage() {
                   </div>
 
                   <div className="px-4 py-2.5 bg-slate-800/50 border-t border-slate-700/60 flex items-center justify-between text-xs font-semibold text-slate-400">
-                    <button type="button" className="flex items-center gap-1.5 hover:text-indigo-400 transition py-1 px-2 rounded-lg hover:bg-slate-700/50">
-                      <ThumbsUp size={16}/> Likes
+                    <button 
+                      type="button" 
+                      onClick={() => handleToggleLike(post.post_id)}
+                      className="flex items-center gap-1.5 hover:text-indigo-400 transition py-1 px-2 rounded-lg hover:bg-slate-700/50"
+                    >
+                      <ThumbsUp size={16}/> {post.likes_count || 0} Likes
                     </button>
-                    <button type="button" className="flex items-center gap-1.5 hover:text-indigo-400 transition py-1 px-2 rounded-lg hover:bg-slate-700/50">
-                      <MessageCircle size={16}/> Comments
+                    <button 
+                      type="button" 
+                      onClick={() => navigate('/chat')} 
+                      className="flex items-center gap-1.5 hover:text-indigo-400 transition py-1 px-2 rounded-lg hover:bg-slate-700/50"
+                    >
+                      <MessageCircle size={16}/> {post.comments_count || 0} Comments
                     </button>
                     <button type="button" className="flex items-center gap-1.5 hover:text-indigo-400 transition py-1 px-2 rounded-lg hover:bg-slate-700/50">
                       <Share2 size={16}/> Share
@@ -154,13 +197,10 @@ export default function Homepage() {
       </div>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur-md border-t border-slate-700 px-4 py-2 flex justify-around items-center text-slate-400 z-50 shadow-lg">
-        <button type="button" className="flex flex-col items-center gap-0.5 text-indigo-400"><Home size={20}/><span className="text-[10px] font-medium">Home</span></button>
-        <button type="button" className="flex flex-col items-center gap-0.5 hover:text-slate-200"><Compass size={20}/><span className="text-[10px] font-medium">Explore</span></button>
-        <button type="button" className="flex flex-col items-center gap-0.5 hover:text-slate-200"><Video size={20}/><span className="text-[10px] font-medium">Videos</span></button>
-        <button type="button" className="flex flex-col items-center gap-0.5 hover:text-slate-200"><MessageSquare size={20}/><span className="text-[10px] font-medium">Chat</span></button>
-        <button type="button" className="flex flex-col items-center gap-0.5 hover:text-slate-200"><Menu size={20}/><span className="text-[10px] font-medium">Menu</span></button>
-      </nav>
-
-    </div>
-  );
-}
+        <button type="button" onClick={() => navigate('/')} className="flex flex-col items-center gap-0.5 text-indigo-400">
+          <Home size={20}/><span className="text-[10px] font-medium">Home</span>
+        </button>
+        <button type="button" onClick={() => navigate('/profile')} className="flex flex-col items-center gap-0.5 hover:text-slate-200">
+          <Compass size={20}/><span className="text-[10px] font-medium">Profile</span>
+        </button>
+        <button type="button" onClick={() => navigate('/chat')} className="flex flex-col items-center gap-0.5 hover:text-slate-200">
