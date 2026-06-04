@@ -5,10 +5,11 @@ import { getDatabase } from './db';
 // 1. REGISTER NEW ACCOUNT CONTROLLER
 export async function registerUser(req: Request, res: Response) {
   try {
-    const { username, email, password, phone, workStatus, relationship } = req.body;
+    // ✅ FIX 1: Destructure keys using the standardized snake_case properties sent by the frontend form
+    const { username, email, password, phone_number, work_status, relationship_status } = req.body;
 
     // Fast validation check for required fields
-    if (!username || !email || !password || !phone) {
+    if (!username || !email || !password || !phone_number) {
       return res.status(400).json({ error: "Missing required registration parameters." });
     }
 
@@ -17,13 +18,13 @@ export async function registerUser(req: Request, res: Response) {
     // Prevent duplicates: Ensure username, email, or phone doesn't exist
     const existingUser = await db.get(
       'SELECT username, email, phone_number FROM users WHERE username = ? OR email = ? OR phone_number = ?',
-      [username, email, phone]
+      [username, email, phone_number]
     );
 
     if (existingUser) {
       if (existingUser.username === username) return res.status(400).json({ error: "Username is already taken." });
       if (existingUser.email === email) return res.status(400).json({ error: "Email account is already registered." });
-      if (existingUser.phone_number === phone) return res.status(400).json({ error: "Mobile number is already linked to an account." });
+      if (existingUser.phone_number === phone_number) return res.status(400).json({ error: "Mobile number is already linked to an account." });
     }
 
     // Securely hash the password using bcrypt before writing to SQLite
@@ -34,17 +35,17 @@ export async function registerUser(req: Request, res: Response) {
     const result = await db.run(
       `INSERT INTO users (username, email, password_hash, phone_number, work_status, relationship_status) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [username, email, passwordHash, phone, workStatus || 'Available', relationship || 'Private']
+      [username, email, passwordHash, phone_number, work_status || 'Available', relationship_status || 'Private']
     );
 
     return res.status(201).json({ 
       success: true, 
       message: "Creator account successfully registered!",
-      userId: result.lastID 
+      user: { userId: result.lastID, username } // Matches the payload expectation inside RegisterLogin.tsx
     });
 
   } catch (error: any) {
-    console.error("Registration Error:", error);
+    console.error("🔴 Registration Error:", error);
     return res.status(500).json({ error: "Internal server registry loop crash." });
   }
 }
@@ -52,22 +53,23 @@ export async function registerUser(req: Request, res: Response) {
 // 2. LOGIN USER CONTROLLER
 export async function loginUser(req: Request, res: Response) {
   try {
-    const { username, password } = req.body;
+    // ✅ FIX 2: Accept either email or username to align cleanly with your frontend authentication form inputs
+    const { email, password } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: "Username and password are required fields." });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email/Username and password are required fields." });
     }
 
     const db = await getDatabase();
 
-    // Query credentials based on unique identifier
+    // ✅ FIX 3: Flexible lookups that handle input credentials seamlessly across both parameters
     const user = await db.get(
-      'SELECT user_id, username, password_hash, restriction_status FROM users WHERE username = ?', 
-      [username]
+      'SELECT user_id, username, password_hash, restriction_status FROM users WHERE username = ? OR email = ?', 
+      [email, email]
     );
 
     if (!user) {
-      return res.status(401).json({ error: "Invalid username or password credentials." });
+      return res.status(401).json({ error: "Invalid credentials." });
     }
 
     // Specification Safeguard Check: Block banned or restricted profiles
@@ -78,7 +80,7 @@ export async function loginUser(req: Request, res: Response) {
     // Compare frontend raw entry string against database bcrypt hash
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
-      return res.status(401).json({ error: "Invalid username or password credentials." });
+      return res.status(401).json({ error: "Invalid credentials." });
     }
 
     // Set online indicators
@@ -91,7 +93,7 @@ export async function loginUser(req: Request, res: Response) {
     });
 
   } catch (error: any) {
-    console.error("Login Error:", error);
+    console.error("🔴 Login Error:", error);
     return res.status(500).json({ error: "Internal server authentication crash." });
   }
 }
