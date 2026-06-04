@@ -6,7 +6,6 @@ export async function updateUserRestriction(req: Request, res: Response) {
   try {
     const { targetUserId, newStatus } = req.body;
 
-    // Validate if the input status matches your specification options
     const validStatuses = ['None', 'Restricted', 'Spam_Flagged', 'Banned'];
     if (!targetUserId || !validStatuses.includes(newStatus)) {
       return res.status(400).json({ error: "Invalid target user ID or restriction status payload." });
@@ -14,17 +13,24 @@ export async function updateUserRestriction(req: Request, res: Response) {
 
     const db = await getDatabase();
 
-    // Check if user exists before attempting update
     const userExists = await db.get('SELECT username FROM users WHERE user_id = ?', [targetUserId]);
     if (!userExists) {
       return res.status(404).json({ error: "Target creator account not found." });
     }
 
-    // Apply the restriction status to the user profile record
     await db.run(
       'UPDATE users SET restriction_status = ?, is_online = 0 WHERE user_id = ?',
       [newStatus, targetUserId]
     );
+
+    // ✅ FIX 1: Real-time eviction. Force disconnect their socket session immediately if restricted/banned
+    if (newStatus === 'Banned' || newStatus === 'Restricted') {
+      const io = req.app.get('io'); // Retrieves the Socket.io server instance attached in server.ts
+      if (io) {
+        // Find their active socket in the global room connection map and boot them
+        io.emit('force_disconnect_user', { userId: targetUserId.toString() });
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -33,7 +39,7 @@ export async function updateUserRestriction(req: Request, res: Response) {
     });
 
   } catch (error) {
-    console.error("Moderation Error:", error);
+    console.error("🔴 Moderation Error:", error);
     return res.status(500).json({ error: "Internal server moderation loop failure." });
   }
 }
@@ -43,13 +49,17 @@ export async function getFlaggedAccounts(req: Request, res: Response) {
   try {
     const db = await getDatabase();
     
-    // Pull any account that has a restriction applied to it
-    const flaggedUsers = await db.all(
-      "SELECT user_id, username, email, phone_number, restriction_status FROM users WHERE restriction_status != 'None'"
-    );
+    // ✅ FIX 2: Added explicit 'IN' operators and NULL checks to prevent SQLite skipping corrupted fields
+    const flaggedUsers = await db.all(`
+      SELECT user_id, username, email, phone_number, restriction_status 
+      FROM users 
+      WHERE restriction_status IN ('Restricted', 'Spam_Flagged', 'Banned')
+         OR restriction_status IS NULL
+    `);
 
     return res.json(flaggedUsers);
   } catch (error) {
+    console.error("🔴 Get Flagged Accounts Error:", error);
     return res.status(500).json({ error: "Failed to retrieve restricted database entries." });
   }
 }
