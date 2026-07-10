@@ -1,174 +1,136 @@
-import { toggleLike, addComment, getPostEngagement, toggleFollow, getFollowStats } from './interactionsController';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import { createClient } from '@supabase/supabase-js';
+
 import { registerUser, loginUser } from './authController';
 import { updateUserRestriction, getFlaggedAccounts } from './moderationController';
-import { getDatabase } from './db';
+import {
+  likePost,
+  commentPost,
+  getComments
+} from './interactionsController';
 
 const app = express();
-app.use(cors());
-app.use(express.json()); 
 
-// -------------------------------------------------------------
-// 🔑 CORE AUTHENTICATION ENDPOINTS 
-// -------------------------------------------------------------
+// SUPABASE CLIENT
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY!; // use service key on backend
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT'] }));
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage });
+
+// AUTH
 app.post('/api/auth/register', registerUser);
 app.post('/api/auth/login', loginUser);
 
-// -------------------------------------------------------------
-// 🛡️ ADMIN MODERATION CONTROL ENDPOINTS 
-// -------------------------------------------------------------
-app.post('/api/admin/restrict', updateUserRestriction);
-app.get('/api/admin/flagged', getFlaggedAccounts);
+// USERS
+app.get('/api/users', async (req, res) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('user_id, username, is_online, work_status');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
 
-// -------------------------------------------------------------
-// 💬 INTERACTION & FOLLOWER MATRIX API ROUTE MAPPINGS
-// -------------------------------------------------------------
-app.post('/api/posts/like', toggleLike);
-app.post('/api/posts/comment', addComment);
-app.get('/api/posts/:postId/engagement', getPostEngagement);
+// PROFILE
+app.get('/api/users/:id', async (req, res) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('user_id', req.params.id)
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
 
-app.post('/api/creators/follow', toggleFollow);
-app.get('/api/creators/:userId/follow-stats', getFollowStats);
+app.put('/api/users/:id', async (req, res) => {
+  const { work_status, relationship_status } = req.body;
+  const { error } = await supabase
+    .from('users')
+    .update({ work_status, relationship_status })
+    .eq('user_id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
 
-// -------------------------------------------------------------
-// 📝 HOMEPAGE SCROLL FEED ENDPOINTS 
-// -------------------------------------------------------------
+// POSTS
 app.get('/api/posts', async (req, res) => {
-  try {
-    const db = await getDatabase();
-    const posts = await db.all(`
-      SELECT p.*, u.username, u.profile_picture_url 
-      FROM posts p 
-      JOIN users u ON p.user_id = u.user_id 
-      ORDER BY p.post_id DESC
-    `);
-    return res.json(posts);
-  } catch (error) {
-    console.error("Fetch Feed Error:", error);
-    return res.status(500).json({ error: "Failed to fetch homepage feed items." });
-  }
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`*, users(username)`)
+    .order('post_id', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
 
 app.post('/api/posts', async (req, res) => {
-  try {
-    const { userId, content, mediaUrl } = req.body;
-    if (!userId || !content.trim()) {
-      return res.status(400).json({ error: "User ID and post content parameters are required." });
-    }
-
-    const db = await getDatabase();
-    const user = await db.get('SELECT restriction_status FROM users WHERE user_id = ?', [userId]);
-    
-    if (!user) {
-      return res.status(404).json({ error: "Creator profile record not found." });
-    }
-    if (user.restriction_status === 'Banned' || user.restriction_status === 'Restricted') {
-      return res.status(403).json({ error: "Your account is restricted from publishing update feeds." });
-    }
-
-    const result = await db.run(
-      `INSERT INTO posts (user_id, content, media_url, is_admin_featured) VALUES (?, ?, ?, 0)`,
-      [userId, content, mediaUrl || null]
-    );
-
-    return res.status(201).json({
-      success: true,
-      message: "Post successfully published to creator network feed!",
-      postId: result.lastID
-    });
-  } catch (error) {
-    console.error("Feed Post Error:", error);
-    return res.status(500).json({ error: "Internal server error." });
+  const { userId, content, mediaUrl } = req.body;
+  if (!userId || !content) {
+    return res.status(400).json({ error: "Missing data" });
   }
+
+  const { data, error } = await supabase
+    .from('posts')
+    .insert([{ 
+      user_id: userId, 
+      content, 
+      media_url: mediaUrl || null, 
+      is_admin_featured: 0 
+    }])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, postId: data.post_id });
 });
 
-// -------------------------------------------------------------
-// 💬 REAL-TIME CHAT WEBSOCKET ENGINE (Optimized & Cleaned)
-// -------------------------------------------------------------
+// POST INTERACTIONS
+app.post('/api/posts/:postId/like', likePost);
+app.post('/api/posts/:postId/comment', commentPost);
+app.get('/api/posts/:postId/comments', getComments);
+
+// ADMIN
+app.post('/api/admin/restrict', updateUserRestriction);
+app.get('/api/admin/flagged', getFlaggedAccounts);
+
+// ROOT
+app.get('/', (req, res) => {
+  res.json({ status: 'alive' });
+});
+
+// SERVER
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
-});
+const io = new Server(httpServer, { cors: { origin: '*' } });
 
-app.set('io', io); // Makes socket server accessible to your controller files
-
-const onlineUsers = new Map<string, string>(); // Map<userId, socketId>
+app.set('io', io);
+const onlineUsers = new Map<string, string>();
 
 io.on('connection', (socket: Socket) => {
-  console.log(`User connected: ${socket.id}`);
-
-  socket.on('user_online', async (userId: string) => {
-    onlineUsers.set(userId, socket.id);
-    const db = await getDatabase();
-    await db.run('UPDATE users SET is_online = 1 WHERE user_id = ?', [userId]);
-    socket.broadcast.emit('user_status_change', { userId, status: 'online' });
-  });
-
-  socket.on('send_message', async (data: {
-    messageId: string; senderId: string; recipientId: string;
-    type: 'text' | 'image' | 'video' | 'audio'; content: string; isViewOnce: boolean;
-  }) => {
-    const recipientSocketId = onlineUsers.get(data.recipientId);
-    const db = await getDatabase();
-
-    const result = await db.run(
-      `INSERT INTO messages (conversation_id, sender_id, message_type, file_url, is_view_once) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [1, data.senderId, data.type, data.content, data.isViewOnce ? 1 : 0]
-    );
-
-    if (recipientSocketId) {
-      // ✅ FIX 2: Added explicit delivery state tracking data payload for receiver
-      io.to(recipientSocketId).emit('receive_message', { 
-        ...data, 
-        dbId: result.lastID, 
-        status: 'delivered' 
-      });
-      socket.emit('message_status_update', { messageId: data.messageId, status: 'delivered' });
-    } else {
-      socket.emit('message_status_update', { messageId: data.messageId, status: 'sent' });
-    }
-  });
-
-  socket.on('message_read', async (data: { messageId: string; senderId: string; recipientId: string; isViewOnce: boolean; dbId?: number }) => {
-    const senderSocketId = onlineUsers.get(data.senderId);
-    const recipientSocketId = onlineUsers.get(data.recipientId);
-
-    // Alert the sender that their message has been read (triggers double blue ticks)
-    if (senderSocketId) {
-      io.to(senderSocketId).emit('message_status_update', { messageId: data.messageId, status: 'read' });
-    }
-
-    // ✅ FIX 1 & 3: Scrub item from DB and target ONLY the active chat participants for visual destruction
-    if (data.isViewOnce && data.dbId) {
-      const db = await getDatabase();
-      // Safe dynamic table schema check update execution
-      await db.run('UPDATE messages SET file_url = NULL, is_opened = 1 WHERE id = ? OR message_id = ?', [data.dbId, data.dbId]);
-      
-      // Target destruction updates only to the sender and recipient, not global broadcast
-      if (senderSocketId) io.to(senderSocketId).emit('destroy_view_once_media', { messageId: data.messageId });
-      if (recipientSocketId) io.to(recipientSocketId).emit('destroy_view_once_media', { messageId: data.messageId });
-      
-      console.log(`🔒 View-Once asset ${data.messageId} successfully destroyed from memory.`);
-    }
-  });
-
   socket.on('disconnect', async () => {
     for (const [userId, socketId] of onlineUsers.entries()) {
       if (socketId === socket.id) {
         onlineUsers.delete(userId);
-        const db = await getDatabase();
-        await db.run('UPDATE users SET is_online = 0, last_seen = CURRENT_TIMESTAMP WHERE user_id = ?', [userId]);
-        socket.broadcast.emit('user_status_change', { userId, status: 'offline', lastSeen: new Date() });
-        break;
+        await supabase.from('users').update({ is_online: 0 }).eq('user_id', userId);
       }
     }
-    console.log(`User disconnected: ${socket.id}`);
   });
 });
 
-const PORT = 5000;
-httpServer.listen(PORT, () => console.log(`🚀 Creator engine server responding live on port ${PORT}`));
+const PORT = process.env.PORT || 10000;
+httpServer.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT}`)
+);
